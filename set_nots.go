@@ -13,24 +13,25 @@ type set[T comparable] struct {
 var _ Set[int] = (*set[int])(nil)
 
 // NewNonTS creates and initializes a new non-threadsafe Set.
-func newNonTS[T comparable]() Set[T] {
-	return &set[T]{make(map[T]struct{})}
-}
+func newNonTS[T comparable]() Set[T] { return &set[T]{make(map[T]struct{})} }
 
 // Add includes the specified items (one or more) to the set. The underlying
 // Set s is modified. If passed nothing it silently returns.
-func (s *set[T]) Add(items ...T) {
+func (s *set[T]) Add(items ...T) Set[T] {
 	for _, item := range items {
 		s.m[item] = null{}
 	}
+
+	return s
 }
 
 // Remove deletes the specified items from the set.  The underlying Set s is
 // modified. If passed nothing it silently returns.
-func (s *set[T]) Remove(items ...T) {
+func (s *set[T]) Remove(items ...T) Set[T] {
 	for _, item := range items {
 		delete(s.m, item)
 	}
+	return s
 }
 
 // Pop  deletes and return an item from the set. The underlying Set s is
@@ -143,15 +144,15 @@ func (s *set[T]) List() []T {
 
 // Merge is like Union, however it modifies the current set it's applied on
 // with the given t set.
-func (s *set[T]) Merge(t Set[T]) {
+func (s *set[T]) Merge(t Set[T]) Set[T] {
 	t.Each(func(item T) bool {
 		s.m[item] = null{}
 		return true
 	})
+
+	return s
 }
 
 // it's not the opposite of Merge.
 // Separate removes the set items containing in t from set s. Please aware that
-func (s *set[T]) Separate(t Set[T]) {
-	s.Remove(t.List()...)
-}
+func (s *set[T]) Separate(t Set[T]) Set[T] { return s.Remove(t.List()...) }

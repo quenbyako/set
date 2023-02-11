@@ -7,8 +7,8 @@ package set
 
 // Set is describing a Set. Sets are an unordered, unique list of values.
 type Set[T any] interface {
-	Add(items ...T)
-	Remove(items ...T)
+	Add(items ...T) Set[T]
+	Remove(items ...T) Set[T]
 	Pop() (T, bool)
 	Has(items ...T) bool
 	// Size returns the number of items in a set.
@@ -24,9 +24,12 @@ type Set[T any] interface {
 	Each(func(T) bool) bool
 	String() string
 	List() []T
+	// Copy returns a new Set with a copy of s.
 	Copy() Set[T]
-	Merge(s Set[T])
-	Separate(s Set[T])
+	// Merge is like Union, however it modifies the current set it's applied on
+	// with the given t set.
+	Merge(s Set[T]) Set[T]
+	Separate(s Set[T]) Set[T]
 }
 
 // helpful to not write everywhere struct{}{}

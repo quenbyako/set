@@ -20,9 +20,7 @@ var _ interface {
 // New creates and initialize a new Set. It's accept a variable number of
 // arguments to populate the initial set. If nothing passed a Set with zero
 // size is created.
-func newTS[T comparable]() Set[T] {
-	return &setm[T]{set: set[T]{make(map[T]struct{})}}
-}
+func newTS[T comparable]() Set[T] { return &setm[T]{set: set[T]{make(map[T]struct{})}} }
 
 type rwLocker interface {
 	RLock()
@@ -31,32 +29,30 @@ type rwLocker interface {
 
 // Add includes the specified items (one or more) to the set. The underlying
 // Set s is modified. If passed nothing it silently returns.
-func (s *setm[T]) Add(items ...T) {
+func (s *setm[T]) Add(items ...T) Set[T] {
 	if len(items) == 0 {
-		return
+		return s
 	}
 
 	s.Lock()
 	defer s.Unlock()
+	s.set.Add()
 
-	for _, item := range items {
-		s.m[item] = null{}
-	}
+	return s
 }
 
 // Remove deletes the specified items from the set.  The underlying Set s is
 // modified. If passed nothing it silently returns.
-func (s *setm[T]) Remove(items ...T) {
+func (s *setm[T]) Remove(items ...T) Set[T] {
 	if len(items) == 0 {
-		return
+		return s
 	}
 
 	s.Lock()
 	defer s.Unlock()
+	s.set.Remove()
 
-	for _, item := range items {
-		delete(s.m, item)
-	}
+	return s
 }
 
 // Pop  deletes and return an item from the set. The underlying Set s is
@@ -167,7 +163,6 @@ func (s *setm[T]) List() []T {
 	return maps.Keys(s.m)
 }
 
-// Copy returns a new Set with a copy of s.
 func (s *setm[T]) Copy() Set[T] {
 	u := newTS[T]()
 	for item := range s.m {
@@ -176,9 +171,7 @@ func (s *setm[T]) Copy() Set[T] {
 	return u
 }
 
-// Merge is like Union, however it modifies the current set it's applied on
-// with the given t set.
-func (s *setm[T]) Merge(t Set[T]) {
+func (s *setm[T]) Merge(t Set[T]) Set[T] {
 	s.Lock()
 	defer s.Unlock()
 
@@ -187,4 +180,5 @@ func (s *setm[T]) Merge(t Set[T]) {
 		return true
 	})
 
+	return s
 }
