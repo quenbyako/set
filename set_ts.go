@@ -1,50 +1,58 @@
 package set
 
-import "sync"
+import (
+	"sync"
+
+	"golang.org/x/exp/maps"
+)
 
 // Set defines a thread safe set data structure.
-type Set struct {
-	set
-	l sync.RWMutex // we name it because we don't want to expose it
+type Set[T comparable] struct {
+	set[T]
+	sync.RWMutex // we name it because we don't want to expose it
 }
+
+var _ interface {
+	rwLocker
+	Interface[int]
+} = (*Set[int])(nil)
 
 // New creates and initialize a new Set. It's accept a variable number of
 // arguments to populate the initial set. If nothing passed a Set with zero
 // size is created.
-func newTS() *Set {
-	s := &Set{}
-	s.m = make(map[interface{}]struct{})
+func newTS[T comparable]() Interface[T] {
+	return &Set[T]{set: set[T]{make(map[T]struct{})}}
+}
 
-	// Ensure interface compliance
-	var _ Interface = s
-
-	return s
+type rwLocker interface {
+	RLock()
+	RUnlock()
 }
 
 // Add includes the specified items (one or more) to the set. The underlying
 // Set s is modified. If passed nothing it silently returns.
-func (s *Set) Add(items ...interface{}) {
+func (s *Set[T]) Add(items ...T) {
 	if len(items) == 0 {
 		return
 	}
 
-	s.l.Lock()
-	defer s.l.Unlock()
+	s.Lock()
+	defer s.Unlock()
 
 	for _, item := range items {
-		s.m[item] = keyExists
+		s.m[item] = null{}
 	}
 }
 
 // Remove deletes the specified items from the set.  The underlying Set s is
 // modified. If passed nothing it silently returns.
-func (s *Set) Remove(items ...interface{}) {
+func (s *Set[T]) Remove(items ...T) {
 	if len(items) == 0 {
 		return
 	}
 
-	s.l.Lock()
-	defer s.l.Unlock()
+	s.Lock()
+	defer s.Unlock()
 
 	for _, item := range items {
 		delete(s.m, item)
@@ -53,29 +61,30 @@ func (s *Set) Remove(items ...interface{}) {
 
 // Pop  deletes and return an item from the set. The underlying Set s is
 // modified. If set is empty, nil is returned.
-func (s *Set) Pop() interface{} {
-	s.l.RLock()
+func (s *Set[T]) Pop() (T, bool) {
+	s.RLock()
 	for item := range s.m {
-		s.l.RUnlock()
-		s.l.Lock()
+		s.RUnlock()
+		s.Lock()
 		delete(s.m, item)
-		s.l.Unlock()
-		return item
+		s.Unlock()
+		return item, true
 	}
-	s.l.RUnlock()
-	return nil
+	s.RUnlock()
+	var t T
+	return t, false
 }
 
 // Has looks for the existence of items passed. It returns false if nothing is
 // passed. For multiple items it returns true only if all of  the items exist.
-func (s *Set) Has(items ...interface{}) bool {
+func (s *Set[T]) Has(items ...T) bool {
 	// assume checked for empty item, which not exist
 	if len(items) == 0 {
 		return false
 	}
 
-	s.l.RLock()
-	defer s.l.RUnlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	has := true
 	for _, item := range items {
@@ -87,31 +96,31 @@ func (s *Set) Has(items ...interface{}) bool {
 }
 
 // Size returns the number of items in a set.
-func (s *Set) Size() int {
-	s.l.RLock()
-	defer s.l.RUnlock()
+func (s *Set[T]) Size() int {
+	s.RLock()
+	defer s.RUnlock()
 
 	l := len(s.m)
 	return l
 }
 
 // Clear removes all items from the set.
-func (s *Set) Clear() {
-	s.l.Lock()
-	defer s.l.Unlock()
+func (s *Set[T]) Clear() {
+	s.Lock()
+	defer s.Unlock()
 
-	s.m = make(map[interface{}]struct{})
+	s.m = make(map[T]struct{})
 }
 
 // IsEqual test whether s and t are the same in size and have the same items.
-func (s *Set) IsEqual(t Interface) bool {
-	s.l.RLock()
-	defer s.l.RUnlock()
+func (s *Set[T]) IsEqual(t Interface[T]) bool {
+	s.RLock()
+	defer s.RUnlock()
 
 	// Force locking only if given set is threadsafe.
-	if conv, ok := t.(*Set); ok {
-		conv.l.RLock()
-		defer conv.l.RUnlock()
+	if conv, ok := t.(rwLocker); ok {
+		conv.RLock()
+		defer conv.RUnlock()
 	}
 
 	// return false if they are no the same size
@@ -120,7 +129,7 @@ func (s *Set) IsEqual(t Interface) bool {
 	}
 
 	equal := true
-	t.Each(func(item interface{}) bool {
+	t.Each(func(item T) bool {
 		_, equal = s.m[item]
 		return equal // if false, Each() will end
 	})
@@ -129,52 +138,38 @@ func (s *Set) IsEqual(t Interface) bool {
 }
 
 // IsSubset tests whether t is a subset of s.
-func (s *Set) IsSubset(t Interface) (subset bool) {
-	s.l.RLock()
-	defer s.l.RUnlock()
+func (s *Set[T]) IsSubset(t Interface[T]) bool {
+	s.RLock()
+	defer s.RUnlock()
 
-	subset = true
-
-	t.Each(func(item interface{}) bool {
-		_, subset = s.m[item]
-		return subset
+	return t.Each(func(item T) bool {
+		_, ok := s.m[item]
+		return ok
 	})
-
-	return
 }
 
 // Each traverses the items in the Set, calling the provided function for each
 // set member. Traversal will continue until all items in the Set have been
 // visited, or if the closure returns false.
-func (s *Set) Each(f func(item interface{}) bool) {
-	s.l.RLock()
-	defer s.l.RUnlock()
+func (s *Set[T]) Each(f func(item T) bool) bool {
+	s.RLock()
+	defer s.RUnlock()
 
-	for item := range s.m {
-		if !f(item) {
-			break
-		}
-	}
+	return s.set.Each(f)
 }
 
 // List returns a slice of all items. There is also StringSlice() and
 // IntSlice() methods for returning slices of type string or int.
-func (s *Set) List() []interface{} {
-	s.l.RLock()
-	defer s.l.RUnlock()
+func (s *Set[T]) List() []T {
+	s.RLock()
+	defer s.RUnlock()
 
-	list := make([]interface{}, 0, len(s.m))
-
-	for item := range s.m {
-		list = append(list, item)
-	}
-
-	return list
+	return maps.Keys(s.m)
 }
 
 // Copy returns a new Set with a copy of s.
-func (s *Set) Copy() Interface {
-	u := newTS()
+func (s *Set[T]) Copy() Interface[T] {
+	u := newTS[T]()
 	for item := range s.m {
 		u.Add(item)
 	}
@@ -183,12 +178,13 @@ func (s *Set) Copy() Interface {
 
 // Merge is like Union, however it modifies the current set it's applied on
 // with the given t set.
-func (s *Set) Merge(t Interface) {
-	s.l.Lock()
-	defer s.l.Unlock()
+func (s *Set[T]) Merge(t Interface[T]) {
+	s.Lock()
+	defer s.Unlock()
 
-	t.Each(func(item interface{}) bool {
-		s.m[item] = keyExists
+	t.Each(func(item T) bool {
+		s.m[item] = null{}
 		return true
 	})
+
 }

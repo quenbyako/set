@@ -24,51 +24,53 @@ func (s SetType) String() string {
 }
 
 // Interface is describing a Set. Sets are an unordered, unique list of values.
-type Interface interface {
-	Add(items ...interface{})
-	Remove(items ...interface{})
-	Pop() interface{}
-	Has(items ...interface{}) bool
+type Interface[T any] interface {
+	Add(items ...T)
+	Remove(items ...T)
+	Pop() (T, bool)
+	Has(items ...T) bool
+	// Size returns the number of items in a set.
 	Size() int
+	// Clear removes all items from the set.
 	Clear()
+	// IsEmpty reports whether the Set is empty.
 	IsEmpty() bool
-	IsEqual(s Interface) bool
-	IsSubset(s Interface) bool
-	IsSuperset(s Interface) bool
-	Each(func(interface{}) bool)
+	// IsEqual test whether s and t are the same in size and have the same items.
+	IsEqual(s Interface[T]) bool
+	IsSubset(s Interface[T]) bool
+	IsSuperset(s Interface[T]) bool
+	Each(func(T) bool) bool
 	String() string
-	List() []interface{}
-	Copy() Interface
-	Merge(s Interface)
-	Separate(s Interface)
+	List() []T
+	Copy() Interface[T]
+	Merge(s Interface[T])
+	Separate(s Interface[T])
 }
 
 // helpful to not write everywhere struct{}{}
-var keyExists = struct{}{}
+type null = struct{}
 
 // New creates and initalizes a new Set interface. Its single parameter
 // denotes the type of set to create. Either ThreadSafe or
 // NonThreadSafe. The default is ThreadSafe.
-func New(settype SetType) Interface {
-	if settype == NonThreadSafe {
-		return newNonTS()
-	}
-	return newTS()
-}
+func New[T comparable]() Interface[T]      { return newTS[T]() }
+func NewNonTS[T comparable]() Interface[T] { return newNonTS[T]() }
+func NewAny[T any]() Interface[T]          { panic("unimplemented") }
+func NewAnyNonTS[T any]() Interface[T]     { panic("unimplemented") }
 
 // Union is the merger of multiple sets. It returns a new set with all the
 // elements present in all the sets that are passed.
 //
 // The dynamic type of the returned set is determined by the first passed set's
 // implementation of the New() method.
-func Union(set1, set2 Interface, sets ...Interface) Interface {
+func Union[T any](set1, set2 Interface[T], sets ...Interface[T]) Interface[T] {
 	u := set1.Copy()
-	set2.Each(func(item interface{}) bool {
+	set2.Each(func(item T) bool {
 		u.Add(item)
 		return true
 	})
 	for _, set := range sets {
-		set.Each(func(item interface{}) bool {
+		set.Each(func(item T) bool {
 			u.Add(item)
 			return true
 		})
@@ -80,7 +82,7 @@ func Union(set1, set2 Interface, sets ...Interface) Interface {
 // Difference returns a new set which contains items which are in in the first
 // set but not in the others. Unlike the Difference() method you can use this
 // function separately with multiple sets.
-func Difference(set1, set2 Interface, sets ...Interface) Interface {
+func Difference[T any](set1, set2 Interface[T], sets ...Interface[T]) Interface[T] {
 	s := set1.Copy()
 	s.Separate(set2)
 	for _, set := range sets {
@@ -90,11 +92,11 @@ func Difference(set1, set2 Interface, sets ...Interface) Interface {
 }
 
 // Intersection returns a new set which contains items that only exist in all given sets.
-func Intersection(set1, set2 Interface, sets ...Interface) Interface {
+func Intersection[T any](set1, set2 Interface[T], sets ...Interface[T]) Interface[T] {
 	all := Union(set1, set2, sets...)
 	result := Union(set1, set2, sets...)
 
-	all.Each(func(item interface{}) bool {
+	all.Each(func(item T) bool {
 		if !set1.Has(item) || !set2.Has(item) {
 			result.Remove(item)
 		}
@@ -111,38 +113,8 @@ func Intersection(set1, set2 Interface, sets ...Interface) Interface {
 
 // SymmetricDifference returns a new set which s is the difference of items which are in
 // one of either, but not in both.
-func SymmetricDifference(s Interface, t Interface) Interface {
+func SymmetricDifference[T any](s, t Interface[T]) Interface[T] {
 	u := Difference(s, t)
 	v := Difference(t, s)
 	return Union(u, v)
-}
-
-// StringSlice is a helper function that returns a slice of strings of s. If
-// the set contains mixed types of items only items of type string are returned.
-func StringSlice(s Interface) []string {
-	slice := make([]string, 0)
-	for _, item := range s.List() {
-		v, ok := item.(string)
-		if !ok {
-			continue
-		}
-
-		slice = append(slice, v)
-	}
-	return slice
-}
-
-// IntSlice is a helper function that returns a slice of ints of s. If
-// the set contains mixed types of items only items of type int are returned.
-func IntSlice(s Interface) []int {
-	slice := make([]int, 0)
-	for _, item := range s.List() {
-		v, ok := item.(int)
-		if !ok {
-			continue
-		}
-
-		slice = append(slice, v)
-	}
-	return slice
 }
