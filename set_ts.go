@@ -20,7 +20,9 @@ var _ interface {
 // New creates and initialize a new Set. It's accept a variable number of
 // arguments to populate the initial set. If nothing passed a Set with zero
 // size is created.
-func newTS[T comparable]() Set[T] { return &setm[T]{set: set[T]{make(map[T]struct{})}} }
+func newTS[T comparable](items ...T) Set[T] {
+	return (&setm[T]{set: set[T]{make(map[T]struct{})}}).Add(items...)
+}
 
 type rwLocker interface {
 	RLock()

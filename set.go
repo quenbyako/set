@@ -47,10 +47,10 @@ type null = struct{}
 // New creates and initalizes a new Set interface. Its single parameter
 // denotes the type of set to create. Either ThreadSafe or
 // NonThreadSafe. The default is ThreadSafe.
-func New[T comparable]() Set[T]       { return newTS[T]() }
-func NewNonTS[T comparable]() Set[T]  { return newNonTS[T]() }
-func NewAny[T Hashable]() Set[T]      { panic("unimplemented") }
-func NewAnyNonTS[T Hashable]() Set[T] { return newAnyNonTS[T]() }
+func New[T comparable](items ...T) Set[T]       { return newTS(items...) }
+func NewNonTS[T comparable](items ...T) Set[T]  { return newNonTS(items...) }
+func NewAny[T Hashable](items ...T) Set[T]      { panic("unimplemented") }
+func NewAnyNonTS[T Hashable](items ...T) Set[T] { return newAnyNonTS[T](items...) }
 
 // Union is the merger of multiple sets. It returns a new set with all the
 // elements present in all the sets that are passed.

@@ -8,7 +8,7 @@ type set[T comparable] struct {
 var _ Set[int] = (*set[int])(nil)
 
 // NewNonTS creates and initializes a new non-threadsafe Set.
-func newNonTS[T comparable]() Set[T] { return &set[T]{make(map[T]struct{})} }
+func newNonTS[T comparable](items ...T) Set[T] { return (&set[T]{make(map[T]struct{})}).Add(items...) }
 
 // Add includes the specified items (one or more) to the set. The underlying
 // Set s is modified. If passed nothing it silently returns.
