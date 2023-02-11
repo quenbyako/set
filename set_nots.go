@@ -10,16 +10,11 @@ type set[T comparable] struct {
 	m map[T]struct{} // struct{} doesn't take up space
 }
 
-// SetNonTS defines a non-thread safe set data structure.
-type SetNonTS[T comparable] struct {
-	set[T]
-}
-
-var _ Interface[int] = (*SetNonTS[int])(nil)
+var _ Set[int] = (*set[int])(nil)
 
 // NewNonTS creates and initializes a new non-threadsafe Set.
-func newNonTS[T comparable]() Interface[T] {
-	return &SetNonTS[T]{set: set[T]{make(map[T]struct{})}}
+func newNonTS[T comparable]() Set[T] {
+	return &set[T]{make(map[T]struct{})}
 }
 
 // Add includes the specified items (one or more) to the set. The underlying
@@ -70,7 +65,7 @@ func (s *set[T]) Has(items ...T) bool {
 func (s *set[T]) Size() int     { return len(s.m) }
 func (s *set[T]) Clear()        { s.m = make(map[T]struct{}) }
 func (s *set[T]) IsEmpty() bool { return s.Size() == 0 }
-func (s *set[T]) IsEqual(t Interface[T]) bool {
+func (s *set[T]) IsEqual(t Set[T]) bool {
 	// Force locking only if given set is threadsafe.
 	if conv, ok := t.(rwLocker); ok {
 		conv.RLock()
@@ -92,7 +87,7 @@ func (s *set[T]) IsEqual(t Interface[T]) bool {
 }
 
 // IsSubset tests whether t is a subset of s.
-func (s *set[T]) IsSubset(t Interface[T]) bool {
+func (s *set[T]) IsSubset(t Set[T]) bool {
 	return t.Each(func(item T) bool {
 		_, ok := s.m[item]
 		return ok
@@ -100,7 +95,7 @@ func (s *set[T]) IsSubset(t Interface[T]) bool {
 }
 
 // IsSuperset tests whether t is a superset of s.
-func (s *set[T]) IsSuperset(t Interface[T]) bool { return t.IsSubset(s) }
+func (s *set[T]) IsSuperset(t Set[T]) bool { return t.IsSubset(s) }
 
 // Each traverses the items in the Set, calling the provided function for each
 // set member. Traversal will continue until all items in the Set have been
@@ -116,7 +111,7 @@ func (s *set[T]) Each(f func(item T) bool) bool {
 }
 
 // Copy returns a new Set with a copy of s.
-func (s *set[T]) Copy() Interface[T] {
+func (s *set[T]) Copy() Set[T] {
 	u := newNonTS[T]()
 	for item := range s.m {
 		u.Add(item)
@@ -148,7 +143,7 @@ func (s *set[T]) List() []T {
 
 // Merge is like Union, however it modifies the current set it's applied on
 // with the given t set.
-func (s *set[T]) Merge(t Interface[T]) {
+func (s *set[T]) Merge(t Set[T]) {
 	t.Each(func(item T) bool {
 		s.m[item] = null{}
 		return true
@@ -157,6 +152,6 @@ func (s *set[T]) Merge(t Interface[T]) {
 
 // it's not the opposite of Merge.
 // Separate removes the set items containing in t from set s. Please aware that
-func (s *set[T]) Separate(t Interface[T]) {
+func (s *set[T]) Separate(t Set[T]) {
 	s.Remove(t.List()...)
 }
