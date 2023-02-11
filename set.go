@@ -5,6 +5,11 @@
 // between the start and the end of the operation.
 package set
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Set is describing a Set. Sets are an unordered, unique list of values.
 type Set[T any] interface {
 	Add(items ...T) Set[T]
@@ -17,10 +22,14 @@ type Set[T any] interface {
 	Clear()
 	// IsEmpty reports whether the Set is empty.
 	IsEmpty() bool
-	// IsEqual test whether s and t are the same in size and have the same items.
+	// IsEqual test whether s and t are the same in size and have the same
+	// items.
 	IsEqual(s Set[T]) bool
 	IsSubset(s Set[T]) bool
 	IsSuperset(s Set[T]) bool
+	// Each traverses the items in the Set, calling the provided function for
+	// each set member. Traversal will continue until all items in the Set have
+	// been visited, or if the closure returns false.
 	Each(func(T) bool) bool
 	String() string
 	List() []T
@@ -38,10 +47,10 @@ type null = struct{}
 // New creates and initalizes a new Set interface. Its single parameter
 // denotes the type of set to create. Either ThreadSafe or
 // NonThreadSafe. The default is ThreadSafe.
-func New[T comparable]() Set[T]      { return newTS[T]() }
-func NewNonTS[T comparable]() Set[T] { return newNonTS[T]() }
-func NewAny[T any]() Set[T]          { panic("unimplemented") }
-func NewAnyNonTS[T any]() Set[T]     { panic("unimplemented") }
+func New[T comparable]() Set[T]       { return newTS[T]() }
+func NewNonTS[T comparable]() Set[T]  { return newNonTS[T]() }
+func NewAny[T Hashable]() Set[T]      { panic("unimplemented") }
+func NewAnyNonTS[T Hashable]() Set[T] { return newAnyNonTS[T]() }
 
 // Union is the merger of multiple sets. It returns a new set with all the
 // elements present in all the sets that are passed.
@@ -102,4 +111,15 @@ func SymmetricDifference[T any](s, t Set[T]) Set[T] {
 	u := Difference(s, t)
 	v := Difference(t, s)
 	return Union(u, v)
+}
+
+func stringSet[T any](s Set[T]) string {
+	l := s.List()
+	t := make([]string, 0, len(l))
+	for _, item := range l {
+
+		t = append(t, fmt.Sprintf("%v", item))
+	}
+
+	return fmt.Sprintf("set[%s]", strings.Join(t, ", "))
 }

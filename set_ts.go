@@ -144,9 +144,6 @@ func (s *setm[T]) IsSubset(t Set[T]) bool {
 	})
 }
 
-// Each traverses the items in the Set, calling the provided function for each
-// set member. Traversal will continue until all items in the Set have been
-// visited, or if the closure returns false.
 func (s *setm[T]) Each(f func(item T) bool) bool {
 	s.RLock()
 	defer s.RUnlock()
@@ -154,8 +151,7 @@ func (s *setm[T]) Each(f func(item T) bool) bool {
 	return s.set.Each(f)
 }
 
-// List returns a slice of all items. There is also StringSlice() and
-// IntSlice() methods for returning slices of type string or int.
+// List returns a slice of all items.
 func (s *setm[T]) List() []T {
 	s.RLock()
 	defer s.RUnlock()
